@@ -1,5 +1,4 @@
 import json
-import time
 from seleniumbase import Driver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -7,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 INPUT_FILE = "missing_price_urls.json"
 OUTPUT_FILE = "collected_prices.json"
+DEFAULT_WAIT_SECONDS = 8
 
 
 def save_results(data):
@@ -23,11 +23,13 @@ def get_text_safe(driver, xpath):
 
 def click_see_more(driver):
     try:
-        btn = WebDriverWait(driver, 2).until(
+        btn = WebDriverWait(driver, DEFAULT_WAIT_SECONDS).until(
             EC.element_to_be_clickable((By.XPATH, "//p[normalize-space()='See More']"))
         )
         btn.click()
-        time.sleep(1)
+        WebDriverWait(driver, DEFAULT_WAIT_SECONDS).until(
+            EC.presence_of_element_located((By.XPATH, "/html/body/div[5]/div[3]/div/div/div[1]/ul"))
+        )
     except Exception:
         pass
 
@@ -47,7 +49,9 @@ try:
     for url in urls:
         try:
             driver.get(url)
-            time.sleep(4)
+            WebDriverWait(driver, DEFAULT_WAIT_SECONDS).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="buy-block-container"]'))
+            )
 
             # Collect before click
             brand = get_text_safe(driver, '//*[@id="buy-block-container"]/div[2]/h1/a')
@@ -106,7 +110,7 @@ try:
 
         except Exception as e:
             save_results(results)
-            print(f"❌ Error: {url} {e}")
+            print(f"❌ Error processing {url}: {type(e).__name__}: {e}")
             continue
 finally:
     driver.quit()
