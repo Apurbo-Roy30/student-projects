@@ -32,8 +32,12 @@ def click_see_more(driver):
         pass
 
 
-with open(INPUT_FILE, "r", encoding="utf-8") as f:
-    urls = json.load(f)
+try:
+    with open(INPUT_FILE, "r", encoding="utf-8") as f:
+        urls = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    print(f"❌ Failed to load URLs from {INPUT_FILE}: file not found or invalid JSON.")
+    raise
 
 
 driver = Driver(uc=True, headless=False)
@@ -70,7 +74,11 @@ try:
 
             country = get_text_safe(
                 driver,
-                "((//ul/li[contains(.,'Made in') or contains(.,'Imported')])[2])",
+                "(//ul/li[contains(.,'Made in') or contains(.,'Imported')])[2]",
+            )
+            metal_or_leather_type = get_text_safe(
+                driver,
+                "(//ul/li[contains(translate(., 'METAL', 'metal'), 'metal') or contains(translate(., 'LEATHER', 'leather'), 'leather')])[2]",
             )
             stone_type = get_text_safe(driver, "/html/body/div[5]/div[3]/div/div/div[1]/ul/li[3]")
             embellishment = get_text_safe(driver, "/html/body/div[5]/div[3]/div/div/div[1]/ul/li[4]")
@@ -88,7 +96,7 @@ try:
                     "Weight": weight,
                     "Stone type": stone_type,
                     "Country of origin": country,
-                    "Metal type / leather type": materials,
+                    "Metal type / leather type": metal_or_leather_type,
                     "Embellishment": embellishment,
                 }
             )
