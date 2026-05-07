@@ -21,6 +21,7 @@ INITIAL_WAIT_SECONDS = 30
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+HEADLESS = os.getenv("SCRAPER_HEADLESS", "false").lower() == "true"
 
 
 scraper_running = False
@@ -47,7 +48,7 @@ def is_scraper_running() -> bool:
 
 
 def scrape_data():
-    driver = Driver(uc=True, headless=False)
+    driver = Driver(uc=True, headless=HEADLESS)
     driver.get(URL)
 
     listings = WebDriverWait(driver, 20).until(
