@@ -18,6 +18,7 @@ JSON_FILE = "kijiji_data.json"
 SCRAPE_INTERVAL_SECONDS = 12 * 60 * 60
 IDLE_CHECK_SECONDS = 2
 INITIAL_WAIT_SECONDS = 30
+SKIP_INITIAL_LISTINGS = 6
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
@@ -57,10 +58,10 @@ def scrape_data():
         )
     )
 
-    listings = listings[6:]
+    listings = listings[SKIP_INITIAL_LISTINGS:]
     scraped_data = []
 
-    for listing in listings:
+    for index, listing in enumerate(listings):
         try:
             product_url = listing.find_element(
                 By.CSS_SELECTOR,
@@ -92,7 +93,7 @@ def scrape_data():
             )
 
         except Exception as exc:
-            print("Error:", exc)
+            print(f"Failed to parse listing data at index {index}: {exc}")
 
     driver.quit()
     return scraped_data
@@ -211,7 +212,10 @@ async def main() -> None:
     await app.start()
 
     if app.updater is None:
-        print("Telegram updater could not be started.")
+        print(
+            "Telegram updater could not be started. "
+            "Check TELEGRAM_BOT_TOKEN and your network connection."
+        )
         return
 
     await app.updater.start_polling(drop_pending_updates=True)
