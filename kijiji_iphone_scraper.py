@@ -15,7 +15,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 URL = "https://www.kijiji.ca/b-cell-phone/canada/iphone/k0c760l0?sort=dateDesc&view=list"
 JSON_FILE = "kijiji_data.json"
-SCRAPE_INTERVAL_SECONDS = 12 * 60 * 60
+SCRAPE_INTERVAL_HOURS = 12
+SCRAPE_INTERVAL_SECONDS = SCRAPE_INTERVAL_HOURS * 60 * 60
 IDLE_CHECK_SECONDS = 2
 INITIAL_WAIT_SECONDS = 30
 SKIP_INITIAL_LISTINGS = 6
@@ -168,7 +169,8 @@ async def wait_for_initial_command(bot) -> None:
     set_scraper_running(False)
     await safe_send_telegram(
         bot,
-        "⏱️ No command received in 30 seconds. Scraper is paused. Send /start to begin.",
+        f"⏱️ No command received in {INITIAL_WAIT_SECONDS} seconds. "
+        "Scraper is paused. Send /start to begin.",
     )
 
 
@@ -195,7 +197,7 @@ async def scraper_controller(bot) -> None:
         else:
             print("No new items found.")
 
-        print("\nWaiting 12 hours...\n")
+        print(f"\nWaiting {SCRAPE_INTERVAL_HOURS} hours...\n")
         await wait_with_pause(SCRAPE_INTERVAL_SECONDS)
 
 
