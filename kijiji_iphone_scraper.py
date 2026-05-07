@@ -28,11 +28,13 @@ SECONDS_PER_HOUR = 60 * 60
 SCRAPE_INTERVAL_SECONDS = SCRAPE_INTERVAL_HOURS * SECONDS_PER_HOUR
 IDLE_CHECK_SECONDS = 2
 WAIT_CHECK_SECONDS = 5
+INITIAL_WAIT_POLL_SECONDS = 1
+LISTING_LOAD_TIMEOUT_SECONDS = 20
 INITIAL_WAIT_SECONDS = 30
 SKIP_INITIAL_LISTINGS = 6
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 HEADLESS = os.getenv("SCRAPER_HEADLESS", "false").lower() == "true"
 
 
@@ -40,11 +42,14 @@ scraper_running = False
 scraper_state_lock = Lock()
 initial_command_received = Event()
 initial_wait_active = Event()
+AUTHORIZED_CHAT_ID = None
 
 
 async def safe_send_telegram(bot, message: str) -> None:
+    if AUTHORIZED_CHAT_ID is None:
+        return
     try:
-        await bot.send_message(chat_id=CHAT_ID, text=message)
+        await bot.send_message(chat_id=AUTHORIZED_CHAT_ID, text=message)
     except TelegramError as exc:
         print(f"Telegram API error: {exc}")
 
@@ -70,7 +75,7 @@ def scrape_data():
     try:
         driver.get(URL)
 
-        listings = WebDriverWait(driver, 20).until(
+        listings = WebDriverWait(driver, LISTING_LOAD_TIMEOUT_SECONDS).until(
             EC.presence_of_all_elements_located(
                 (By.CSS_SELECTOR, "section[data-testid='listing-card']")
             )
@@ -139,7 +144,11 @@ def run_scraper_cycle():
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if str(update.effective_chat.id) != CHAT_ID:
+    if (
+        AUTHORIZED_CHAT_ID is None
+        or update.effective_chat is None
+        or update.effective_chat.id != AUTHORIZED_CHAT_ID
+    ):
         return
 
     set_scraper_running(True)
@@ -152,7 +161,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if str(update.effective_chat.id) != CHAT_ID:
+    if (
+        AUTHORIZED_CHAT_ID is None
+        or update.effective_chat is None
+        or update.effective_chat.id != AUTHORIZED_CHAT_ID
+    ):
         return
 
     set_scraper_running(False)
@@ -189,7 +202,7 @@ async def wait_for_initial_command(bot) -> None:
         if initial_command_received.is_set():
             initial_wait_active.clear()
             return
-        await asyncio.sleep(1)
+        await asyncio.sleep(INITIAL_WAIT_POLL_SECONDS)
 
     set_scraper_running(False)
     initial_wait_active.clear()
@@ -232,8 +245,15 @@ async def scraper_controller(bot) -> None:
 
 
 async def main() -> None:
+    global AUTHORIZED_CHAT_ID
+
     if not BOT_TOKEN or not CHAT_ID:
         print("Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID environment variables before running.")
+        return
+    try:
+        AUTHORIZED_CHAT_ID = int(CHAT_ID)
+    except ValueError:
+        print("TELEGRAM_CHAT_ID must be a valid integer chat ID.")
         return
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()

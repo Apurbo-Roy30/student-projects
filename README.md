@@ -9,7 +9,7 @@ Kijiji iPhone scraper with Telegram bot command control.
 2. Set environment variables:
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID`
-   - `SCRAPER_HEADLESS` (`true`/`false`, optional)
+   - `SCRAPER_HEADLESS` (`true`/`false`, optional, default: `false`)
 3. Start scraper:
    `python kijiji_iphone_scraper.py`
 
