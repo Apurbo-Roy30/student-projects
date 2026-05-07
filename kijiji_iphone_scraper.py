@@ -30,6 +30,7 @@ HEADLESS = os.getenv("SCRAPER_HEADLESS", "false").lower() == "true"
 scraper_running = False
 scraper_state_lock = Lock()
 initial_command_received = Event()
+waiting_for_initial_command = True
 
 
 async def safe_send_telegram(bot, message: str) -> None:
@@ -48,6 +49,11 @@ def set_scraper_running(value: bool) -> None:
 def is_scraper_running() -> bool:
     with scraper_state_lock:
         return scraper_running
+
+
+def mark_initial_command_received() -> None:
+    if waiting_for_initial_command:
+        initial_command_received.set()
 
 
 def scrape_data():
@@ -126,7 +132,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     set_scraper_running(True)
-    initial_command_received.set()
+    mark_initial_command_received()
 
     try:
         await update.message.reply_text("✅ Scraper started. Send /stop anytime to pause.")
@@ -139,7 +145,7 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     set_scraper_running(False)
-    initial_command_received.set()
+    mark_initial_command_received()
 
     try:
         await update.message.reply_text("⏸️ Scraper paused. Send /start anytime to resume.")
@@ -156,6 +162,9 @@ async def wait_with_pause(seconds: int) -> None:
 
 
 async def wait_for_initial_command(bot) -> None:
+    global waiting_for_initial_command
+    waiting_for_initial_command = True
+
     await safe_send_telegram(
         bot,
         "🤖 Kijiji iPhone scraper control is ready.\n"
@@ -165,10 +174,12 @@ async def wait_for_initial_command(bot) -> None:
 
     for _ in range(INITIAL_WAIT_SECONDS):
         if initial_command_received.is_set():
+            waiting_for_initial_command = False
             return
         await asyncio.sleep(1)
 
     set_scraper_running(False)
+    waiting_for_initial_command = False
     await safe_send_telegram(
         bot,
         f"⏱️ No command received in {INITIAL_WAIT_SECONDS} seconds. "
@@ -218,7 +229,7 @@ async def main() -> None:
     if app.updater is None:
         print(
             "Telegram updater could not be started. "
-            "Check TELEGRAM_BOT_TOKEN and your network connection."
+            "Check network connectivity and Telegram API availability."
         )
         await app.stop()
         await app.shutdown()
