@@ -16,7 +16,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 URL = "https://www.kijiji.ca/b-cell-phone/canada/iphone/k0c760l0?sort=dateDesc&view=list"
 JSON_FILE = "kijiji_data.json"
 SCRAPE_INTERVAL_HOURS = 12
-SCRAPE_INTERVAL_SECONDS = SCRAPE_INTERVAL_HOURS * 60 * 60
+SECONDS_PER_HOUR = 60 * 60
+SCRAPE_INTERVAL_SECONDS = SCRAPE_INTERVAL_HOURS * SECONDS_PER_HOUR
 IDLE_CHECK_SECONDS = 2
 INITIAL_WAIT_SECONDS = 30
 SKIP_INITIAL_LISTINGS = 6
@@ -59,6 +60,7 @@ def scrape_data():
         )
     )
 
+    # Skip top featured/sponsored cards that are often repeated noise.
     listings = listings[SKIP_INITIAL_LISTINGS:]
     scraped_data = []
 
@@ -218,6 +220,8 @@ async def main() -> None:
             "Telegram updater could not be started. "
             "Check TELEGRAM_BOT_TOKEN and your network connection."
         )
+        await app.stop()
+        await app.shutdown()
         return
 
     await app.updater.start_polling(drop_pending_updates=True)
